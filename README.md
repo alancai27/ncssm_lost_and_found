@@ -448,11 +448,18 @@ for:
 |---|---|
 | Branding → Application home page | `https://your-app.onrender.com/` |
 | Branding → Application privacy policy link | `https://your-app.onrender.com/privacy` |
-| Branding → Authorized domains | `onrender.com` |
+| Branding → Authorized domains | `your-app.onrender.com` — the **full host** |
 | Clients → Authorized redirect URIs | `https://your-app.onrender.com/auth/callback` |
 
 *Add* the redirect URI rather than replacing the localhost ones, so local
 development keeps working.
+
+Authorized domains normally take the registrable domain — `example.com`, not
+`app.example.com`. Render is an exception: `onrender.com` is on the [Public
+Suffix List](https://publicsuffix.org/list/), alongside `herokuapp.com` and
+`github.io`, so it is treated as a public suffix that nobody owns and Google
+rejects it. Enter the full host instead. On your own domain, the usual rule
+applies and you would enter the registrable domain.
 
 ### Remaining free-tier caveat
 
