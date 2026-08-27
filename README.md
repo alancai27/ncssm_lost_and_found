@@ -415,7 +415,21 @@ and creates the service. Then set every `sync: false` variable in the
 dashboard: the two above plus `GEMINI_API_KEY`, `GOOGLE_CLIENT_ID` and
 `GOOGLE_CLIENT_SECRET`.
 
-The app prints which backends it is using at startup, so check the logs:
+The app **refuses to start** in production if `DATABASE_URL` or the `S3_*`
+variables are missing. Without that guard it would quietly fall back to SQLite
+and local uploads, appear to work, and then lose every item and photo on the
+next deploy — the exact failure this setup exists to prevent.
+
+`GET /healthz` reports which backends the running instance actually has, with
+no hostnames or keys in the response:
+
+```json
+{"ok": true, "database": "postgres", "photos": "object-storage", "ai": true,
+ "sign_in": "google", "items": 0}
+```
+
+If that says `"database": "sqlite"` on a deployed instance, the config did not
+take. The startup logs say the same thing:
 
 ```
 Database: Postgres (ep-something.neon.tech)

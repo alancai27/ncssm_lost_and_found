@@ -84,6 +84,33 @@ app.config.update(
 )
 
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+# Render sets RENDER=true; HTTPS_ONLY is our own production marker. On a host
+# with an ephemeral filesystem, falling back to SQLite and local uploads would
+# "work" right up until the next deploy silently destroyed every item and
+# photo. Refuse to start instead.
+IN_PRODUCTION = bool(os.environ.get("RENDER")) or os.environ.get("HTTPS_ONLY") == "1"
+
+if IN_PRODUCTION:
+    _fatal = []
+    if not db.IS_POSTGRES:
+        _fatal.append(
+            "DATABASE_URL is not set, so the app would use SQLite on a disk that "
+            "is wiped on every deploy. Every posted item would be lost."
+        )
+    if not storage.using_s3():
+        _fatal.append(
+            "S3_* is not set, so uploaded photos would be written to a disk that "
+            "is wiped on every deploy."
+        )
+    if _fatal:
+        for _p in _fatal:
+            print(f"  FATAL: {_p}")
+        raise SystemExit(
+            "Refusing to start in production without persistent storage. "
+            "See the Deploying section of README.md."
+        )
+
 db.init()
 
 # Fail at boot rather than on a student's first upload.
@@ -398,6 +425,23 @@ def privacy():
 @app.route("/about")
 def about():
     return render_template("about.html")
+
+
+@app.route("/healthz")
+def healthz():
+    """
+    Which backends the running instance actually has. Names only -- no
+    hostnames, buckets or keys -- so it is safe to leave public, and it is the
+    only way to tell from outside whether a deploy picked up its config.
+    """
+    return {
+        "ok": True,
+        "database": "postgres" if db.IS_POSTGRES else "sqlite",
+        "photos": "object-storage" if storage.using_s3() else "local-disk",
+        "ai": bool(ai.available()),
+        "sign_in": "google" if auth.configured() else "unconfigured",
+        "items": db.counts()["total"],
+    }
 
 
 @app.route("/favicon.ico")
