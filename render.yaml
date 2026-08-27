@@ -1,13 +1,19 @@
-# Render deploys this straight from the GitHub repo.
-# Set GEMINI_API_KEY, GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in the Render
-# dashboard, NOT here -- this file is committed.
+# Render reads this on "New -> Blueprint".
+#
+# Everything marked `sync: false` must be set by hand in the Render dashboard;
+# this file is committed, so no secret belongs in it.
+#
+# The free plan has no persistent disk -- it is wiped on every deploy and
+# restart -- so the database lives in managed Postgres and photos live in
+# object storage. See the Deploying section of README.md.
 services:
   - type: web
     name: ncssm-lost-and-found
     runtime: python
     plan: free
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120
+    healthCheckPath: /privacy
     envVars:
       - key: PYTHON_VERSION
         value: "3.12"
@@ -17,8 +23,22 @@ services:
         value: ncssm.edu
       - key: GEMINI_MODEL
         value: gemini-3.6-flash
+      - key: S3_REGION
+        value: auto
       - key: SECRET_KEY
         generateValue: true
+
+      # --- set these in the dashboard ---
+      - key: DATABASE_URL          # Neon / Supabase connection string
+        sync: false
+      - key: S3_BUCKET
+        sync: false
+      - key: S3_ENDPOINT_URL       # e.g. https://<account>.r2.cloudflarestorage.com
+        sync: false
+      - key: S3_ACCESS_KEY_ID
+        sync: false
+      - key: S3_SECRET_ACCESS_KEY
+        sync: false
       - key: GEMINI_API_KEY
         sync: false
       - key: GOOGLE_CLIENT_ID

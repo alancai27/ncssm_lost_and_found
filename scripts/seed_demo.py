@@ -14,7 +14,8 @@ from PIL import Image, ImageDraw
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import db  # noqa: E402
+import db       # noqa: E402
+import storage  # noqa: E402
 
 UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "static", "uploads")
 
@@ -125,9 +126,7 @@ def clear():
     for item in db.list_items(status=None):
         if item["image"].startswith("demo_"):
             for name in (item["image"], item["thumb"]):
-                path = os.path.join(UPLOAD_DIR, name)
-                if os.path.exists(path):
-                    os.remove(path)
+                storage.delete(name)
             db.delete_item(item["id"])
             removed += 1
     print(f"Removed {removed} demo item(s).")
@@ -147,11 +146,14 @@ def main():
         if image in existing:
             continue
         thumb = f"{spec['stem']}_t.jpg"
+        import io
+
         img = draw(spec["shape"], spec["bg"], spec["fg"])
-        img.save(os.path.join(UPLOAD_DIR, image), "JPEG", quality=88)
-        t = img.copy()
-        t.thumbnail((600, 600))
-        t.save(os.path.join(UPLOAD_DIR, thumb), "JPEG", quality=80)
+        buf = io.BytesIO(); img.save(buf, "JPEG", quality=88)
+        storage.save(image, buf.getvalue())
+        t = img.copy(); t.thumbnail((600, 600))
+        tbuf = io.BytesIO(); t.save(tbuf, "JPEG", quality=80)
+        storage.save(thumb, tbuf.getvalue())
 
         db.add_item(
             image=image, thumb=thumb, campus="durham",

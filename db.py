@@ -1,15 +1,31 @@
-"""SQLite storage for found items."""
+"""
+Storage for found items.
+
+SQLite by default, which needs no setup and keeps local development simple.
+Set DATABASE_URL to a postgres:// URL and it uses Postgres instead -- which is
+what production needs, because Render's free instances have no persistent disk
+for a SQLite file to live on.
+
+The two dialects differ in three small ways, all handled here: the parameter
+placeholder (? vs %s), how a new row's id comes back (lastrowid vs RETURNING),
+and how to list existing columns when migrating.
+"""
 
 import json
 import os
 import sqlite3
 from datetime import datetime, timezone
+from urllib.parse import urlparse
 
+DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
+IS_POSTGRES = DATABASE_URL.startswith(("postgres://", "postgresql://"))
 DB_PATH = os.environ.get("LNF_DB", os.path.join(os.path.dirname(__file__), "lostfound.db"))
 
-SCHEMA = """
+SERIAL = "SERIAL PRIMARY KEY" if IS_POSTGRES else "INTEGER PRIMARY KEY AUTOINCREMENT"
+
+SCHEMA = f"""
 CREATE TABLE IF NOT EXISTS items (
-    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    id             {SERIAL},
     image          TEXT NOT NULL,
     thumb          TEXT NOT NULL,
     campus         TEXT NOT NULL DEFAULT 'durham',
@@ -36,13 +52,6 @@ CREATE INDEX IF NOT EXISTS idx_items_status ON items(status);
 CREATE INDEX IF NOT EXISTS idx_items_campus ON items(campus);
 """
 
-
-def connect():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
-
-
 # Columns added after the first release; existing databases get them on boot.
 ADDED_COLUMNS = {
     "posted_by": "TEXT",
@@ -52,10 +61,73 @@ ADDED_COLUMNS = {
 }
 
 
+def backend_name():
+    if not IS_POSTGRES:
+        return f"SQLite ({os.path.basename(DB_PATH)})"
+    host = urlparse(DATABASE_URL).hostname or "?"
+    return f"Postgres ({host})"
+
+
+def _q(sql):
+    """SQLite takes ?, Postgres takes %s. Queries are written with ?."""
+    return sql.replace("?", "%s") if IS_POSTGRES else sql
+
+
+class _Conn:
+    """Thin wrapper so both drivers behave the same at the call sites."""
+
+    def __init__(self):
+        if IS_POSTGRES:
+            import psycopg
+            from psycopg.rows import dict_row
+
+            self.raw = psycopg.connect(DATABASE_URL, row_factory=dict_row)
+        else:
+            self.raw = sqlite3.connect(DB_PATH)
+            self.raw.row_factory = sqlite3.Row
+
+    def execute(self, sql, args=()):
+        cur = self.raw.cursor()
+        cur.execute(_q(sql), args)
+        return cur
+
+    def executescript(self, script):
+        if IS_POSTGRES:
+            cur = self.raw.cursor()
+            for stmt in filter(None, (s.strip() for s in script.split(";"))):
+                cur.execute(stmt)
+        else:
+            self.raw.executescript(script)
+
+    def columns(self, table):
+        if IS_POSTGRES:
+            cur = self.execute(
+                "SELECT column_name FROM information_schema.columns WHERE table_name = ?",
+                (table,),
+            )
+            return {r["column_name"] for r in cur.fetchall()}
+        return {r["name"] for r in self.execute(f"PRAGMA table_info({table})").fetchall()}
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, *_):
+        if exc_type is None:
+            self.raw.commit()
+        else:
+            self.raw.rollback()
+        self.raw.close()
+        return False
+
+
+def connect():
+    return _Conn()
+
+
 def init():
     with connect() as conn:
         conn.executescript(SCHEMA)
-        have = {r["name"] for r in conn.execute("PRAGMA table_info(items)")}
+        have = conn.columns("items")
         for name, coltype in ADDED_COLUMNS.items():
             if name not in have:
                 conn.execute(f"ALTER TABLE items ADD COLUMN {name} {coltype}")
@@ -95,9 +167,13 @@ def add_item(**kw):
     }
     cols = ", ".join(fields)
     marks = ", ".join("?" for _ in fields)
+    sql = f"INSERT INTO items ({cols}) VALUES ({marks})"
+
     with connect() as conn:
-        cur = conn.execute(f"INSERT INTO items ({cols}) VALUES ({marks})", list(fields.values()))
-        return cur.lastrowid
+        if IS_POSTGRES:
+            cur = conn.execute(sql + " RETURNING id", list(fields.values()))
+            return cur.fetchone()["id"]
+        return conn.execute(sql, list(fields.values())).lastrowid
 
 
 def get_item(item_id):
@@ -135,7 +211,7 @@ def set_status(item_id, status, by_email=None):
 
 
 def delete_item(item_id):
-    """Remove the row and return it, so the caller can clean up the files."""
+    """Remove the row and return it, so the caller can clean up the photos."""
     item = get_item(item_id)
     if item:
         with connect() as conn:
@@ -144,12 +220,12 @@ def delete_item(item_id):
 
 
 def counts():
+    # CASE WHEN rather than SQLite's `SUM(status = 'x')`, which Postgres rejects.
     with connect() as conn:
         row = conn.execute(
-            "SELECT "
-            "  COUNT(*) AS total, "
-            "  SUM(status = 'unclaimed') AS unclaimed, "
-            "  SUM(status = 'claimed') AS claimed "
+            "SELECT COUNT(*) AS total, "
+            "  SUM(CASE WHEN status = 'unclaimed' THEN 1 ELSE 0 END) AS unclaimed, "
+            "  SUM(CASE WHEN status = 'claimed' THEN 1 ELSE 0 END) AS claimed "
             "FROM items"
         ).fetchone()
     return {k: (row[k] or 0) for k in ("total", "unclaimed", "claimed")}

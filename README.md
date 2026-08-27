@@ -286,6 +286,9 @@ you when it hits that limit and still saves the item.
 | `GEMINI_API_KEY` | *(unset)* | Turns on vision + AI matching. Without it, keyword search. |
 | `GEMINI_MODEL` | `gemini-3.6-flash` | Which model to call. |
 | `SECRET_KEY` | generated into `.secret_key` | **Set a fixed value in production** — this signs session cookies. |
+| `DATABASE_URL` | *(unset → SQLite)* | Postgres connection string. Required in production. |
+| `S3_BUCKET` / `S3_ENDPOINT_URL` / `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` | *(unset → local disk)* | Object storage for photos. Required in production. |
+| `S3_PREFIX` | `uploads/` | Key prefix inside the bucket. |
 | `PORT` | `5000` | Port to serve on. |
 | `LNF_DB` | `./lostfound.db` | SQLite file location. |
 | `FLASK_DEBUG` | *(unset)* | `1` for auto-reload while developing. Never in production. |
@@ -347,15 +350,74 @@ static-file only, so there is nowhere to run Flask, keep the database, accept
 uploads, or hold the API key and OAuth secret. (Enabling Pages on this repo
 just publishes this README as a web page.)
 
-`render.yaml` in the repo root configures [Render](https://render.com), whose
-free tier runs Python and deploys from GitHub:
+The target is Render's free plan, which runs Python and deploys from GitHub.
+**Its filesystem is wiped on every deploy and restart**, so nothing written at
+runtime can live on it — hence managed Postgres for the database and object
+storage for photos. Both have free tiers that comfortably fit a campus lost
+and found.
 
-1. Sign in with GitHub, then **New → Blueprint** and pick this repository.
-2. Set `GEMINI_API_KEY`, `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in the
-   Render dashboard. They are deliberately not in `render.yaml`, which is
-   committed.
+Locally none of this applies: with no `DATABASE_URL` and no `S3_*` set, the app
+uses SQLite and `static/uploads/` exactly as before, and neither `psycopg` nor
+`boto3` is even imported.
 
-That gives a URL like `https://your-app.onrender.com`. Feed it back to Google:
+### 1. Database — Neon
+
+[neon.tech](https://neon.tech) → new project → copy the connection string. It
+looks like `postgresql://user:pass@ep-something.neon.tech/dbname`. The free
+tier is 0.5 GB, which is far more than this schema will ever need — photos do
+not go here.
+
+### 2. Photos — Cloudflare R2
+
+[Cloudflare dashboard](https://dash.cloudflare.com) → R2 → create a bucket.
+Then **Manage R2 API Tokens** → create one with read and write. You need four
+values:
+
+| Variable | Where it comes from |
+|---|---|
+| `S3_BUCKET` | the bucket name |
+| `S3_ENDPOINT_URL` | `https://<account-id>.r2.cloudflarestorage.com` |
+| `S3_ACCESS_KEY_ID` | from the API token |
+| `S3_SECRET_ACCESS_KEY` | from the API token |
+
+R2's free tier is 10 GB, roughly 25,000 photos at the size this app stores.
+The bucket can stay **private** — photos are streamed back through the app at
+`/uploads/<name>`, so no public bucket or custom domain is needed.
+
+Any S3-compatible service works instead: Backblaze B2, Supabase Storage, MinIO,
+or S3 itself. Only the endpoint changes.
+
+### 3. Check the credentials before deploying
+
+```bash
+DATABASE_URL='postgresql://...' S3_BUCKET=... S3_ENDPOINT_URL=... S3_ACCESS_KEY_ID=... S3_SECRET_ACCESS_KEY=... python3 scripts/check_deploy.py
+```
+
+This writes a throwaway row and a throwaway object, reads both back, and
+deletes them. It is much easier to debug a connection string here than in
+Render's build logs.
+
+### 4. Deploy
+
+Render → **New → Blueprint** → pick this repository. It reads `render.yaml`
+and creates the service. Then set every `sync: false` variable in the
+dashboard: the two above plus `GEMINI_API_KEY`, `GOOGLE_CLIENT_ID` and
+`GOOGLE_CLIENT_SECRET`.
+
+The app prints which backends it is using at startup, so check the logs:
+
+```
+Database: Postgres (ep-something.neon.tech)
+Photos:   object storage (my-bucket at https://....r2.cloudflarestorage.com)
+```
+
+If storage is misconfigured the app refuses to start rather than failing on a
+student's first upload.
+
+### 5. Point Google at it
+
+You now have a public URL, which is what publishing the OAuth app was waiting
+for:
 
 | Google Cloud Console field | Value |
 |---|---|
@@ -365,19 +427,13 @@ That gives a URL like `https://your-app.onrender.com`. Feed it back to Google:
 | Clients → Authorized redirect URIs | `https://your-app.onrender.com/auth/callback` |
 
 *Add* the redirect URI rather than replacing the localhost ones, so local
-development keeps working. With those filled in, **Publish app** should go
-through.
+development keeps working.
 
-### The free tier will lose your data
+### Remaining free-tier caveat
 
-Render's free instances have an ephemeral filesystem: it is wiped on every
-deploy and restart. `lostfound.db` and everything in `static/uploads/` go with
-it. That is fine while testing the sign-in flow and fatal once students are
-posting real items. Before it goes live for real, either attach a persistent
-disk (paid) or move the database to Postgres and uploads to object storage.
-
-Free instances also sleep after inactivity, so the first request after a quiet
-spell takes ~30 seconds.
+Free instances sleep after 15 minutes idle, so the first request after a quiet
+spell takes 30–60 seconds. Data is no longer at risk — that was the part worth
+fixing — but if the delay bothers people, Render's paid tier removes it.
 
 ## Demo data
 
@@ -414,7 +470,8 @@ all.
 ```
 app.py                  routes
 auth.py                 Google sign-in and the @ncssm.edu restriction
-db.py                   SQLite schema + queries
+db.py                   schema + queries; SQLite locally, Postgres in production
+storage.py              photos; local disk locally, S3-compatible in production
 ai.py                   vision, ranking, and the keyword fallback
 static/main.css         the ncssmtime.com design language, extended
 static/app.js           toggles, drag-and-drop, submit states
@@ -423,6 +480,7 @@ templates/              Jinja templates
 render.yaml             Render deployment blueprint
 source-images/          original photos, for regenerating backgrounds
 scripts/check_ai.py     verify the API key and list usable models
+scripts/check_deploy.py verify Postgres + object storage before deploying
 scripts/set_background.py  install a campus photo
 scripts/seed_demo.py    placeholder items for development
 ```
@@ -443,8 +501,9 @@ It's built to be simple, which means a few things are deliberately missing:
   returned; the app records who did it but does not verify ownership. The
   item page tells claimants to describe something the photo doesn't show —
   that check happens between two humans, not in this app.
-- **Uploaded photos are served as-is** from `static/uploads/`. Anyone with
-  the URL can view one without going through the item page.
+- **Uploaded photos are served without an access check** at
+  `/uploads/<name>`. The names are unguessable random hex, but anyone with a
+  URL can open the photo without going through the item page.
 - **`/privacy` describes all of the above to users.** If you change what the
   app stores or who can see it, update that page too — it is the thing Google
   and your users are being pointed at.
