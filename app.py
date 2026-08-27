@@ -237,7 +237,7 @@ def search():
                 item["reason"] = info["reason"]
                 results.append(item)
         except ai.AIError as exc:
-            ai_note = f"AI matching is unavailable right now ({exc}) — showing keyword matches instead."
+            ai_note = f"AI matching is down ({exc}). Showing keyword matches."
 
     if not results:
         # No key, model failed, or the model found nothing it liked.
@@ -246,8 +246,6 @@ def search():
                 item["score"] = item["keyword_score"]
                 item["reason"] = ""
                 results.append(item)
-        if ai.available() and not ai_note and not results:
-            ai_note = "The AI didn't find a confident match. Try fewer words, or browse everything."
 
     return render_template(
         "results.html",
@@ -320,7 +318,7 @@ def post_item():
         posted_by_name=user["name"],
     )
 
-    flash("Posted. Thanks for turning it in.", "ok")
+    flash("Posted.", "ok")
     return redirect(url_for("item_detail", item_id=item_id))
 
 
@@ -350,11 +348,7 @@ def claim(item_id):
         return render_template("notfound.html"), 404
     new_status = "unclaimed" if item["status"] == "claimed" else "claimed"
     db.set_status(item_id, new_status, by_email=auth.current_user()["email"])
-    flash(
-        "Marked as returned to its owner." if new_status == "claimed"
-        else "Moved back to the unclaimed list.",
-        "ok",
-    )
+    flash("Marked as returned." if new_status == "claimed" else "Moved back to unclaimed.", "ok")
     return redirect(url_for("item_detail", item_id=item_id))
 
 
@@ -365,11 +359,7 @@ def login():
         return redirect(url_for("index"))
 
     if not auth.configured():
-        flash(
-            "Google sign-in is not set up on this server. See the README "
-            "section on Google sign-in.",
-            "error",
-        )
+        flash("Google sign-in is not configured on this server.", "error")
         return redirect(url_for("index"))
 
     return render_template(
@@ -472,7 +462,7 @@ def uploads(name):
 
 @app.errorhandler(RequestEntityTooLarge)
 def too_large(_exc):
-    flash("That photo is over 16 MB. Try a smaller one.", "error")
+    flash("That photo is over 16 MB.", "error")
     return render_template("post.html"), 413
 
 

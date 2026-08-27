@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}“{{ query }}” — Lost &amp; Found{% endblock %}
+{% block title %}“{{ query }}” · Lost &amp; Found{% endblock %}
 {% block body_class %}scrolls{% endblock %}
 
 {% block body %}
@@ -12,8 +12,7 @@
 
   <h2 class="page-title">{{ results|length }} possible match{{ '' if results|length == 1 else 'es' }}</h2>
   <p class="page-sub">
-    for “{{ query }}” — searched {{ pool_size }} unclaimed item{{ '' if pool_size == 1 else 's' }}
-    {%- if ai_on %} with AI matching{% endif %}
+    “{{ query }}”
   </p>
 
   {% if ai_note %}<div class="notice error">{{ ai_note }}</div>{% endif %}
@@ -37,8 +36,7 @@
     </div>
   {% else %}
     <p class="empty">
-      Nothing matched that description.
-      <a href="{{ url_for('browse') }}">Browse everything</a> — it may be logged under different words.
+      Nothing matched. <a href="{{ url_for('browse') }}">Browse everything</a>.
     </p>
   {% endif %}
 

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Sign in — Lost &amp; Found{% endblock %}
+{% block title %}Sign in · Lost &amp; Found{% endblock %}
 {% block body_class %}scrolls{% endblock %}
 
 {% block body %}
@@ -9,7 +9,6 @@
   {% include "_flashes.html" %}
 
   <h2 class="page-title">Sign in</h2>
-  <p class="page-sub">Posting a found item needs your @{{ auth_domain }} account.</p>
 
   <div class="panel" style="max-width: 460px">
     <a class="google-btn" href="{{ url_for('login_google', next=next_url) }}">
@@ -22,9 +21,7 @@
       Continue with Google
     </a>
 
-    <p class="hint" style="margin-top: 18px">
-      Only @{{ auth_domain }} accounts are accepted.
-    </p>
+    <p class="hint" style="margin-top: 18px">@{{ auth_domain }} accounts only.</p>
   </div>
 </main>
 {% endblock %}

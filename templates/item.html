@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{{ item.title }} — Lost &amp; Found{% endblock %}
+{% block title %}{{ item.title }} · Lost &amp; Found{% endblock %}
 {% block body_class %}scrolls{% endblock %}
 
 {% block body %}
@@ -60,13 +60,13 @@
           {% set who = item.posted_by_name or item.finder_name %}
           {% set how = item.finder_contact or item.posted_by %}
           {% if who and how %}
-            {{ who }} — {{ how }}
+            {{ who }} · {{ how }}
           {% elif how %}
             {{ how }}
           {% elif who %}
             {{ who }} (no contact given)
           {% else %}
-            No contact given — check the front desk.
+            No contact given.
           {% endif %}
         </dd>
 
@@ -76,10 +76,6 @@
         {% endif %}
       </dl>
 
-      <div class="notice" style="margin-top: 28px">
-        Is this yours? Message the finder and describe something the photo
-        doesn’t show — that’s how they know it’s really yours.
-      </div>
 
       {% if user %}
         <form action="{{ url_for('claim', item_id=item.id) }}" method="post">
@@ -89,8 +85,7 @@
         </form>
       {% elif auth_enabled %}
         <p class="hint">
-          <a href="{{ url_for('login', next=request.path) }}">Sign in</a> with your
-          @{{ auth_domain }} account to mark this returned.
+          <a href="{{ url_for('login', next=request.path) }}">Sign in</a> to mark this returned.
         </p>
       {% endif %}
     </div>

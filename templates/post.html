@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Post an item — Lost &amp; Found{% endblock %}
+{% block title %}Post an item · Lost &amp; Found{% endblock %}
 {% block body_class %}scrolls{% endblock %}
 
 {% block body %}
@@ -9,13 +9,6 @@
   {% include "_flashes.html" %}
 
   <h2 class="page-title">Post a found item</h2>
-  <p class="page-sub">
-    {% if ai_on %}
-      Take a photo and the rest fills itself in — the AI reads the item so people can find it by describing it.
-    {% else %}
-      Take a photo and add a short note so people can search for it.
-    {% endif %}
-  </p>
 
   <form class="panel" action="{{ url_for('post_item') }}" method="post" enctype="multipart/form-data" id="post-form">
     <p class="posting-as">Posting as <strong>{{ user.email }}</strong></p>
@@ -25,14 +18,14 @@
       <label class="drop" id="drop">
         <input type="file" name="photo" id="photo" accept="image/*" required />
         <p id="drop-text">Choose a photo or drag one here</p>
-        <p class="sub" id="drop-sub">One item per photo, on a plain background if you can</p>
+        <p class="sub" id="drop-sub">One item per photo</p>
         <img id="preview" hidden alt="Preview of the selected photo" />
       </label>
     </div>
 
     <div class="field-row">
       <div class="field">
-        <label for="location">Where you found it</label>
+        <label for="location">Where</label>
         <input type="text" name="location" id="location" placeholder="Bryan lobby, PEC, 3rd Hill…"
                value="{{ form.location if form }}" />
       </div>
@@ -43,25 +36,21 @@
     </div>
 
     <div class="field">
-      <label for="title">Item name <span class="sub" style="display:inline">— optional</span></label>
+      <label for="title">Item name <span class="sub" style="display:inline">(optional)</span></label>
       <input type="text" name="title" id="title" placeholder="{{ 'Leave blank and the AI names it' if ai_on else 'Blue water bottle' }}"
              value="{{ form.title if form }}" />
     </div>
 
     <div class="field">
-      <label for="note">Anything the photo doesn’t show</label>
+      <label for="note">Notes</label>
       <textarea name="note" id="note" placeholder="Left it at the front desk. Has a name written inside.">{{ form.note if form }}</textarea>
-      <p class="sub">Don’t list unique details a real owner should have to tell you — that’s how you check it’s theirs.</p>
     </div>
 
     <div class="field">
-      <label for="finder_contact">How the owner should reach you</label>
+      <label for="finder_contact">Contact</label>
       <input type="text" name="finder_contact" id="finder_contact"
              placeholder="{{ user.email }}" value="{{ form.finder_contact if form }}" />
-      <p class="sub">
-        Leave blank to use your school email. Put “front desk” or a location
-        here instead if you’d rather not share it.
-      </p>
+      <p class="sub">Blank uses your school email.</p>
     </div>
 
     <div class="field">
