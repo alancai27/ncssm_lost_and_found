@@ -67,25 +67,25 @@ into the verification queue the moment you publish it — which is exactly the
 wait we are avoiding. If you already uploaded one, remove it before
 publishing. The consent screen works fine without it.
 
-**Leave the rest blank too**, including all of these:
+**Application home page and Application privacy policy link are required to
+publish**, even though this app needs no verification. Google's words when you
+try:
+
+> Valid app name, support email, homepage url, and privacy policy url are
+> required for switching the app to external production mode.
+
+They must be publicly reachable URLs, which means **the app has to be deployed
+somewhere before you can publish** — `localhost` will not do. See
+[Deploying](#deploying). While you are still on `localhost` and in Testing
+status, leave them blank; they only gate the move to production.
+
+Leave these blank regardless:
 
 | Field | Leave empty because |
 |---|---|
-| Application home page | Only shown on the consent screen if you set it, and its domain would then have to be registered below. |
-| Application privacy policy link | Required for *verification*, which this app is exempt from. |
-| Application terms of service link | Same. |
-| Authorized domains | Only needed for domains you actually reference. `localhost` and `127.0.0.1` are supported for OAuth without being registered here — Google does not accept them as authorized domains, and does not need to. |
+| Application terms of service link | Not required to publish, and this app has no separate terms. |
+| Authorized domains | Only needed once you reference a real domain. `localhost` and `127.0.0.1` are supported for OAuth without being registered, and Google will not accept them here anyway. |
 | App logo | Uploading one forces verification when you publish. See above. |
-
-Authorized domains only become relevant once you fill in one of the link
-fields above, or point an OAuth client at a real domain. Since you are running
-on `localhost`, there is no domain to register yet.
-
-**When you deploy to a real domain**, come back and add just the registrable
-domain — `example.com`, not `https://lostfound.example.com/` — then you can
-fill in the home page link. A privacy policy is still optional as far as
-Google is concerned, though a site holding student photos and email addresses
-probably deserves one regardless.
 
 Click **Save** before moving on. The Audience page stays locked until this one
 is complete — if it says *"Your app's OAuth configuration is incomplete"*, it
@@ -133,11 +133,19 @@ One cosmetic caveat: showing a custom app name and logo on Google's consent
 screen requires a separate lightweight "brand verification". Skip it and the
 consent screen still works, it just looks plainer.
 
-#### If "Publish app" refuses with "OAuth configuration is incomplete"
+#### If "Publish app" refuses
 
-This is a known Google Cloud console bug, reported by many people with every
-required field filled in, and it has no confirmed fix. Do not burn an evening
-on it.
+Read the message carefully; there are two different failures here.
+
+**"Valid app name, support email, homepage url, and privacy policy url are
+required..."** — this one is real and actionable. Deploy the app, then put its
+public URL and its `/privacy` URL on the Branding page and add the domain under
+Authorized domains. See [Deploying](#deploying).
+
+**"Your app's OAuth configuration is incomplete. Please visit the Branding
+page..."** with every field already filled — this vaguer one is a known Google
+Cloud console bug, reported by many people on freshly created projects, with no
+confirmed fix. Do not burn an evening on it.
 
 **It does not block you.** Testing status works completely — add your own
 address under **Audience → Test users** and carry on to step 4. Everything in
@@ -288,36 +296,88 @@ gitignored; keep it that way, it holds your API key and OAuth secret.
 
 ## The campus background
 
-Install a campus photo for each campus:
+Each campus has its own full-bleed photo. Install one with:
 
 ```bash
-python3 scripts/set_background.py durham ~/Downloads/durham.jpg
+python3 scripts/set_background.py durham source-images/durham-aerial-snow.jpg
 ```
 
 ```bash
-python3 scripts/set_background.py morganton ~/Downloads/morganton.jpg
+python3 scripts/set_background.py morganton source-images/morganton-aerial.webp
 ```
 
-If you just saved the photo out of a chat window, `--latest` picks the newest
-image in `~/Downloads` so you don't have to type the filename:
+`--latest` picks the newest image in `~/Downloads` instead, if you just saved
+one out of a browser.
 
-```bash
-python3 scripts/set_background.py durham --latest
-```
+The script resamples to 2400px wide with Lanczos, applies a light unsharp mask,
+and writes `static/assets/<campus>-bg.webp`. That matters: a source narrower
+than the display gets upscaled by the browser with cheap bilinear filtering,
+which reads as blur. Doing it properly ourselves measures about 54% more edge
+energy. It cannot invent detail — if you get the full-resolution originals,
+replace the files in `source-images/` and re-run, and it will downscale
+instead, which is strictly better. The script tells you which it did.
 
-That resizes and writes `static/assets/<campus>-bg.jpg`. Until a photo is
-installed the page falls back to a gradient in the same tone.
+Originals live in `source-images/` so backgrounds can be regenerated later.
 
-The page lays a light scrim over the photo in CSS so white text stays
-readable. It is deliberately light, because the photos in use are already
-darkened. **If you swap in a bright daylight photo, the text will be hard to
-read** — raise the `rgba(6, 16, 30, …)` alpha values on `body` in
-`static/main.css` until it is comfortable.
+### Readability over the photo
 
-The two photos currently installed were taken from
-[ncssmtime.com](https://ncssmtime.com)'s `assets/` directory. They are that
-site's files, not ours — if this goes anywhere public, ask its maintainers,
-or swap in your own shots with the command above.
+White Montserrat over a photograph only works if the photo underneath stays
+dark, so each background carries a two-part scrim in `static/main.css` — a
+horizontal gradient weighted to the left where all the text sits, plus a
+vertical one covering the top and bottom corners where the account bar and nav
+links land. Weighting it left means the right side of the photo keeps its
+detail instead of being flattened uniformly.
+
+The values are per campus, because photos differ enormously: the Durham snow
+aerial is close to the same white as the text and needs far more scrim than the
+Morganton dusk shot. They were set by measuring, not by eye — compositing the
+scrim over the photo and computing WCAG contrast for white text against the
+brightest 2% of each text region. Everything currently sits above 4.5:1; the
+Morganton heading was at 2.3:1 before this and was genuinely unreadable.
+
+`scripts/set_background.py` prints the brightness of the region behind the
+heading when you install a photo, and says whether the existing scrim is
+enough. If it flags a photo as bright, raise the `rgba(...)` alphas on
+`.bg-durham` or `.bg-morganton`.
+
+## Deploying
+
+The app needs a host that runs Python. GitHub Pages cannot serve it — it is
+static-file only, so there is nowhere to run Flask, keep the database, accept
+uploads, or hold the API key and OAuth secret. (Enabling Pages on this repo
+just publishes this README as a web page.)
+
+`render.yaml` in the repo root configures [Render](https://render.com), whose
+free tier runs Python and deploys from GitHub:
+
+1. Sign in with GitHub, then **New → Blueprint** and pick this repository.
+2. Set `GEMINI_API_KEY`, `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in the
+   Render dashboard. They are deliberately not in `render.yaml`, which is
+   committed.
+
+That gives a URL like `https://your-app.onrender.com`. Feed it back to Google:
+
+| Google Cloud Console field | Value |
+|---|---|
+| Branding → Application home page | `https://your-app.onrender.com/` |
+| Branding → Application privacy policy link | `https://your-app.onrender.com/privacy` |
+| Branding → Authorized domains | `onrender.com` |
+| Clients → Authorized redirect URIs | `https://your-app.onrender.com/auth/callback` |
+
+*Add* the redirect URI rather than replacing the localhost ones, so local
+development keeps working. With those filled in, **Publish app** should go
+through.
+
+### The free tier will lose your data
+
+Render's free instances have an ephemeral filesystem: it is wiped on every
+deploy and restart. `lostfound.db` and everything in `static/uploads/` go with
+it. That is fine while testing the sign-in flow and fatal once students are
+posting real items. Before it goes live for real, either attach a persistent
+disk (paid) or move the database to Postgres and uploads to object storage.
+
+Free instances also sleep after inactivity, so the first request after a quiet
+spell takes ~30 seconds.
 
 ## Demo data
 
@@ -360,6 +420,8 @@ static/main.css         the ncssmtime.com design language, extended
 static/app.js           toggles, drag-and-drop, submit states
 static/uploads/         posted photos (gitignored)
 templates/              Jinja templates
+render.yaml             Render deployment blueprint
+source-images/          original photos, for regenerating backgrounds
 scripts/check_ai.py     verify the API key and list usable models
 scripts/set_background.py  install a campus photo
 scripts/seed_demo.py    placeholder items for development
@@ -383,6 +445,9 @@ It's built to be simple, which means a few things are deliberately missing:
   that check happens between two humans, not in this app.
 - **Uploaded photos are served as-is** from `static/uploads/`. Anyone with
   the URL can view one without going through the item page.
+- **`/privacy` describes all of the above to users.** If you change what the
+  app stores or who can see it, update that page too — it is the thing Google
+  and your users are being pointed at.
 - **Rotate any key that has been pasted into a chat, screenshot, or commit.**
   Gemini keys are revoked and reissued at
   [aistudio.google.com/apikey](https://aistudio.google.com/apikey).
