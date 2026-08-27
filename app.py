@@ -397,7 +397,7 @@ def auth_callback():
         return redirect(url_for("index"))
 
     auth.sign_in(user)
-    flash(f"Signed in as {user['email']}.", "ok")
+    # No confirmation flash: the account bar already shows who you are.
     return redirect(auth.pop_next() or url_for("index"))
 
 
