@@ -1,0 +1,10 @@
+<div class="account-bar">
+  {% if user %}
+    <span class="who" title="{{ user.email }}">{{ user.email }}</span>
+    <form action="{{ url_for('logout') }}" method="post">
+      <button class="linkish" type="submit">Sign out</button>
+    </form>
+  {% elif auth_enabled %}
+    <a href="{{ url_for('login', next=request.path) }}">Sign in</a>
+  {% endif %}
+</div>

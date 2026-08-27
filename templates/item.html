@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}{{ item.title }} — Lost &amp; Found{% endblock %}
+{% block body_class %}scrolls{% endblock %}
+
+{% block body %}
+<main class="page">
+  <p class="go-back"><a href="{{ url_for('index') }}">Go Back</a></p>
+
+  {% include "_flashes.html" %}
+
+  <div class="detail">
+    <div class="photo">
+      <a href="{{ url_for('uploads', name=item.image) }}" target="_blank" rel="noopener">
+        <img src="{{ url_for('uploads', name=item.image) }}" alt="{{ item.title }}" />
+      </a>
+    </div>
+
+    <div class="info">
+      {% if item.status == 'claimed' %}
+        <span class="badge claimed">Returned to owner</span>
+      {% else %}
+        <span class="badge">Unclaimed</span>
+      {% endif %}
+
+      <h2 class="page-title" style="font-size: 44px; margin-top: 14px">{{ item.title }}</h2>
+
+      {% if item.tags %}
+        <div class="tags" style="margin-top: 10px">
+          {% for tag in item.tags %}<span class="tag">{{ tag }}</span>{% endfor %}
+        </div>
+      {% endif %}
+
+      <dl>
+        {% if item.ai_description %}
+          <dt>Description</dt>
+          <dd style="font-size: 17px">{{ item.ai_description }}</dd>
+        {% endif %}
+
+        {% if item.user_note %}
+          <dt>Note from the finder</dt>
+          <dd style="font-size: 17px">{{ item.user_note }}</dd>
+        {% endif %}
+
+        <dt>Found</dt>
+        <dd>
+          {{ item.found_location or 'Location not given' }}
+          {%- if item.found_at %} · {{ item.found_at }}{% endif %}
+        </dd>
+
+        {% if item.brand or item.color %}
+          <dt>Details</dt>
+          <dd>
+            {{ item.color|title if item.color }}{% if item.color and item.brand %} · {% endif %}
+            {{ item.brand if item.brand }}
+          </dd>
+        {% endif %}
+
+        <dt>Found by</dt>
+        <dd>
+          {% set who = item.posted_by_name or item.finder_name %}
+          {% set how = item.finder_contact or item.posted_by %}
+          {% if who and how %}
+            {{ who }} — {{ how }}
+          {% elif how %}
+            {{ how }}
+          {% elif who %}
+            {{ who }} (no contact given)
+          {% else %}
+            No contact given — check the front desk.
+          {% endif %}
+        </dd>
+
+        {% if item.status == 'claimed' and item.claimed_by %}
+          <dt>Marked returned by</dt>
+          <dd>{{ item.claimed_by }}{% if item.claimed_at %} · {{ item.claimed_at[:10] }}{% endif %}</dd>
+        {% endif %}
+      </dl>
+
+      <div class="notice" style="margin-top: 28px">
+        Is this yours? Message the finder and describe something the photo
+        doesn’t show — that’s how they know it’s really yours.
+      </div>
+
+      {% if user %}
+        <form action="{{ url_for('claim', item_id=item.id) }}" method="post">
+          <button class="btn ghost" type="submit">
+            {{ 'Move back to unclaimed' if item.status == 'claimed' else 'Mark as returned' }}
+          </button>
+        </form>
+      {% elif auth_enabled %}
+        <p class="hint">
+          <a href="{{ url_for('login', next=request.path) }}">Sign in</a> with your
+          @{{ auth_domain }} account to mark this returned.
+        </p>
+      {% endif %}
+    </div>
+  </div>
+</main>
+{% endblock %}
+
+{% block settings %}{% endblock %}
+{% block nav %}{% endblock %}

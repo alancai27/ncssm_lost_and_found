@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Browse — Lost &amp; Found{% endblock %}
+{% block body_class %}scrolls{% endblock %}
+
+{% block body %}
+<main class="page">
+  <p class="go-back"><a href="{{ url_for('index') }}">Go Back</a></p>
+
+  {% include "_flashes.html" %}
+
+  {% with inline=True %}{% include "_switches.html" %}{% endwith %}
+
+  <h2 class="page-title">{{ 'Returned items' if status == 'claimed' else 'Everything unclaimed' }}</h2>
+  <p class="page-sub">
+    NCSSM {{ 'Morganton' if campus == 'morganton' else 'Durham' }} · {{ items|length }} item{{ '' if items|length == 1 else 's' }} ·
+    {% if status == 'claimed' %}
+      <a href="{{ url_for('browse') }}">see unclaimed</a>
+    {% else %}
+      <a href="{{ url_for('browse', status='claimed') }}">see returned</a>
+    {% endif %}
+  </p>
+
+  {% if items %}
+    <div class="grid">
+      {% for item in items %}
+        <a class="card" href="{{ url_for('item_detail', item_id=item.id) }}">
+          <img src="{{ url_for('uploads', name=item.thumb) }}" alt="{{ item.title }}" loading="lazy" />
+          <div class="body">
+            <h5>{{ item.title }}</h5>
+            <p>
+              {{ item.found_location or 'Location not given' }}
+              {%- if item.found_at %} · {{ item.found_at }}{% endif %}
+            </p>
+            {% if item.tags %}
+              <div class="tags">
+                {% for tag in item.tags[:4] %}<span class="tag">{{ tag }}</span>{% endfor %}
+              </div>
+            {% endif %}
+          </div>
+        </a>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="empty">Nothing here yet. <a href="{{ url_for('post_item') }}">Post an item.</a></p>
+  {% endif %}
+</main>
+{% endblock %}
+
+{% block settings %}{% endblock %}
+{% block nav %}{% endblock %}

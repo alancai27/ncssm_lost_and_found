@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{% block title %}NCSSM Lost &amp; Found{% endblock %}</title>
+    <meta name="description" content="Post and search for lost items around the NCSSM Durham campus." />
+    <meta property="og:title" content="NCSSM Lost &amp; Found" />
+    <meta property="og:description" content="Post and search for lost items around the NCSSM Durham campus." />
+
+    <link rel="icon" href="{{ url_for('static', filename='assets/favicon.ico') }}" sizes="any" />
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='assets/favicon.png') }}" />
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='assets/apple-touch-icon.png') }}" />
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400&family=Montserrat:wght@300;400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+
+  <body class="{{ 'morganton' if campus == 'morganton' else '' }} {% block body_class %}{% endblock %}">
+    {# Both campus photos stay in the DOM so switching is a crossfade rather
+       than a reload. background-image can't be animated; opacity can. #}
+    <div class="bg bg-durham" aria-hidden="true"></div>
+    <div class="bg bg-morganton" aria-hidden="true"></div>
+
+    {% include "_account.html" %}
+
+    {% block settings %}{% include "_switches.html" %}{% endblock %}
+
+    {% block body %}{% endblock %}
+
+    {% block nav %}
+    <div class="button-index">
+      <p>
+        <a href="{{ url_for('post_item') }}">Post an item</a> |
+        <a href="{{ url_for('browse') }}">Browse</a> |
+        <a href="{{ url_for('about') }}">About</a>
+      </p>
+    </div>
+    {% endblock %}
+
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+  </body>
+</html>

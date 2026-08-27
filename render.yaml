@@ -1,0 +1,27 @@
+# Render deploys this straight from the GitHub repo.
+# Set GEMINI_API_KEY, GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in the Render
+# dashboard, NOT here -- this file is committed.
+services:
+  - type: web
+    name: ncssm-lost-and-found
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12"
+      - key: HTTPS_ONLY
+        value: "1"
+      - key: ALLOWED_EMAIL_DOMAIN
+        value: ncssm.edu
+      - key: GEMINI_MODEL
+        value: gemini-3.6-flash
+      - key: SECRET_KEY
+        generateValue: true
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false

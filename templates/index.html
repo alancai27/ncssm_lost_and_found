@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}NCSSM Lost &amp; Found{% endblock %}
+
+{% block body %}
+<main>
+  <div class="main-times">
+    {% include "_flashes.html" %}
+
+    <h4 id="banner">NCSSM {{ 'Morganton' if campus == 'morganton' else 'Durham' }}</h4>
+    <h2>Lost&nbsp;&amp;&nbsp;Found</h2>
+
+    <form class="search-form" action="{{ url_for('search') }}" method="get" id="search-form">
+      <div class="search-row">
+        <input
+          type="search"
+          name="q"
+          id="q"
+          placeholder="Describe what you lost…"
+          autocomplete="off"
+          required
+        />
+        <button class="btn" type="submit" id="search-btn">Search</button>
+      </div>
+      {% if not ai_on %}
+        <p class="hint">Keyword search — set <code>GEMINI_API_KEY</code> to turn on AI matching.</p>
+      {% endif %}
+    </form>
+  </div>
+
+</main>
+{% endblock %}

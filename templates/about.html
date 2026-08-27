@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}About — Lost &amp; Found{% endblock %}
+{% block body_class %}scrolls{% endblock %}
+
+{% block body %}
+<main class="page">
+  <p class="go-back"><a href="{{ url_for('index') }}">Go Back</a></p>
+
+  <div class="about">
+    <p class="about-lead">
+      <strong>NCSSM Lost &amp; Found</strong> is a CS TA project built to help
+      facilitate the return of missing items to their rightful owners across
+      both the Durham and Morganton campuses. Use this website to find your
+      lost belongings and/or to help your peers find theirs.
+    </p>
+
+    <p class="about-credits">
+      Website made by Alan Cai '27D.
+    </p>
+
+    <p class="about-credits">
+      2026-2027 Maintained by Alan Cai '27D
+    </p>
+
+    <p class="about-meta">
+      Inspired by <a href="https://ncssmtime.com" target="_blank" rel="noopener">NCSSM Time</a><br />
+      Made in Python, HTML, JS, and CSS<br />
+      Est. August 27, 2026<br />
+      <a href="{{ url_for('privacy') }}">Privacy</a><br />
+      <a href="https://ai.google.dev/" target="_blank" rel="noopener">Gemini API Attribution</a>
+    </p>
+  </div>
+</main>
+{% endblock %}
+
+{% block settings %}{% endblock %}
+{% block nav %}{% endblock %}

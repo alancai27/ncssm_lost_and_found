@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}“{{ query }}” — Lost &amp; Found{% endblock %}
+{% block body_class %}scrolls{% endblock %}
+
+{% block body %}
+<main class="page">
+  <p class="go-back"><a href="{{ url_for('index') }}">Go Back</a></p>
+
+  {% include "_flashes.html" %}
+
+  {% with inline=True %}{% include "_switches.html" %}{% endwith %}
+
+  <h2 class="page-title">{{ results|length }} possible match{{ '' if results|length == 1 else 'es' }}</h2>
+  <p class="page-sub">
+    for “{{ query }}” — searched {{ pool_size }} unclaimed item{{ '' if pool_size == 1 else 's' }}
+    {%- if ai_on %} with AI matching{% endif %}
+  </p>
+
+  {% if ai_note %}<div class="notice error">{{ ai_note }}</div>{% endif %}
+
+  {% if results %}
+    <div class="grid">
+      {% for item in results %}
+        <a class="card" href="{{ url_for('item_detail', item_id=item.id) }}">
+          <img src="{{ url_for('uploads', name=item.thumb) }}" alt="{{ item.title }}" loading="lazy" />
+          <div class="body">
+            <span class="score {{ 'weak' if item.score < 60 }}">{{ item.score }}% match</span>
+            <h5>{{ item.title }}</h5>
+            {% if item.reason %}<p class="reason">{{ item.reason }}</p>{% endif %}
+            <p>
+              {{ item.found_location or 'Location not given' }}
+              {%- if item.found_at %} · {{ item.found_at }}{% endif %}
+            </p>
+          </div>
+        </a>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="empty">
+      Nothing matched that description.
+      <a href="{{ url_for('browse') }}">Browse everything</a> — it may be logged under different words.
+    </p>
+  {% endif %}
+
+  <form class="search-form" action="{{ url_for('search') }}" method="get">
+    <div class="search-row">
+      <input type="search" name="q" value="{{ query }}" placeholder="Describe what you lost…" required />
+      <button class="btn" type="submit">Search again</button>
+    </div>
+  </form>
+</main>
+{% endblock %}
+
+{% block settings %}{% endblock %}
+{% block nav %}{% endblock %}

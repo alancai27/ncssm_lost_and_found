@@ -1,0 +1,12 @@
+{# The campus switch. `inline` lays it out inside page content instead of
+   pinned to the top-left corner. #}
+<div class="settings-container {{ 'inline' if inline }}">
+  <div class="campus-switch">
+    <p class="label">Durham</p>
+    <label class="switch">
+      <input type="checkbox" class="campus-toggle" {{ 'checked' if campus == 'morganton' }} />
+      <span class="slider round"></span>
+    </label>
+    <p class="label">Morganton</p>
+  </div>
+</div>
