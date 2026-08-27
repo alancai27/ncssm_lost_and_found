@@ -38,6 +38,26 @@ def backend_name():
     return f"object storage ({S3_BUCKET} at {where})"
 
 
+def config_warnings():
+    """Mismatches that produce confusing signature errors rather than clear ones."""
+    notes = []
+    if not using_s3():
+        return notes
+    if "supabase" in S3_ENDPOINT and S3_REGION in ("", "auto"):
+        notes.append(
+            "S3_REGION is 'auto' but the endpoint is Supabase, which signs with a "
+            "real region (e.g. us-east-1). Copy it from Storage -> S3 Configuration; "
+            "otherwise every request fails with SignatureDoesNotMatch."
+        )
+    if S3_ENDPOINT and not S3_ENDPOINT.startswith("https://"):
+        notes.append(f"S3_ENDPOINT_URL should start with https:// (got {S3_ENDPOINT!r}).")
+    if S3_ENDPOINT.rstrip("/").endswith("/s3") is False and "supabase" in S3_ENDPOINT:
+        notes.append(
+            "Supabase endpoints end with /storage/v1/s3 — a bare project URL will not work."
+        )
+    return notes
+
+
 def _s3():
     global _client
     if _client is None:

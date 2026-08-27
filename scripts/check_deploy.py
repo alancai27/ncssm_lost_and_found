@@ -71,6 +71,8 @@ def main():
             step("delete the row", lambda: db.delete_item(item_id) and "removed")
 
     print(f"\nPhoto storage: {storage.backend_name()}")
+    for note in storage.config_warnings():
+        print(f"  WARN {note}")
     if not storage.using_s3():
         print("  NOTE: S3_* not set, so this is checking the local filesystem.")
         print("  Render's free tier wipes that on every deploy.")

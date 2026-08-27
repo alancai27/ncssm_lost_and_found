@@ -367,25 +367,36 @@ looks like `postgresql://user:pass@ep-something.neon.tech/dbname`. The free
 tier is 0.5 GB, which is far more than this schema will ever need — photos do
 not go here.
 
-### 2. Photos — Cloudflare R2
+### 2. Photos — Supabase Storage
 
-[Cloudflare dashboard](https://dash.cloudflare.com) → R2 → create a bucket.
-Then **Manage R2 API Tokens** → create one with read and write. You need four
-values:
+[supabase.com](https://supabase.com) → new project. No payment method needed,
+unlike Cloudflare R2, which will not issue API tokens until a card is on file.
 
-| Variable | Where it comes from |
+1. **Storage** → **New bucket** → name it `lost-and-found`. Leave it
+   **private**; photos are streamed back through the app, so nothing needs to
+   be publicly readable.
+2. **Storage** → **S3 Configuration** → **Access keys** → generate a pair.
+   The secret is shown once.
+3. That same page shows the endpoint and region.
+
+| Variable | Value |
 |---|---|
-| `S3_BUCKET` | the bucket name |
-| `S3_ENDPOINT_URL` | `https://<account-id>.r2.cloudflarestorage.com` |
-| `S3_ACCESS_KEY_ID` | from the API token |
-| `S3_SECRET_ACCESS_KEY` | from the API token |
+| `S3_BUCKET` | `lost-and-found` |
+| `S3_ENDPOINT_URL` | `https://<project-ref>.supabase.co/storage/v1/s3` |
+| `S3_ACCESS_KEY_ID` | from the access keys |
+| `S3_SECRET_ACCESS_KEY` | from the access keys |
+| `S3_REGION` | **the real region shown on that page**, e.g. `us-east-1` |
 
-R2's free tier is 10 GB, roughly 25,000 photos at the size this app stores.
-The bucket can stay **private** — photos are streamed back through the app at
-`/uploads/<name>`, so no public bucket or custom domain is needed.
+The region matters. Supabase signs requests with it, so leaving the default
+`auto` (which is correct for R2) makes every request fail with
+`SignatureDoesNotMatch`. `check_deploy.py` and the app both warn if the
+endpoint looks like Supabase and the region is still `auto`.
 
-Any S3-compatible service works instead: Backblaze B2, Supabase Storage, MinIO,
-or S3 itself. Only the endpoint changes.
+The free tier is 1 GB, roughly 2,500 photos at the size this app stores.
+
+Any S3-compatible service works instead — Cloudflare R2 (10 GB free, card
+required), Backblaze B2, MinIO, or S3 itself. Only the endpoint and region
+change.
 
 ### 3. Check the credentials before deploying
 

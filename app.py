@@ -88,6 +88,8 @@ db.init()
 
 # Fail at boot rather than on a student's first upload.
 if storage.using_s3():
+    for _note in storage.config_warnings():
+        print(f"  ! {_note}")
     storage.check()
 
 
